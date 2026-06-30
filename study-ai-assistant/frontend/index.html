@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StudyAI — your notes, turned into a study system</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F3F5EF;
+    --surface: #FFFFFF;
+    --surface-sunken: #ECEFE6;
+    --ink: #16241B;
+    --ink-soft: #54624F;
+    --ink-faint: #8B9485;
+    --line: #DADFD0;
+    --accent: #2F6F4E;
+    --accent-hover: #265B40;
+    --accent-soft: #E2EEE3;
+    --warm: #C9633E;
+    --warm-soft: #F7E4DA;
+    --danger: #B23A35;
+    --danger-soft: #FBE6E4;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; margin: 0; color: var(--ink); }
+  p { margin: 0; }
+  button { font-family: var(--font-body); cursor: pointer; }
+  input, select, textarea { font-family: var(--font-body); }
+
+  /* ---------- Shell ---------- */
+  .app-shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 28px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; padding: 0 6px; }
+  .brand-mark { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .brand-tag { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius);
+    color: var(--ink-soft); font-size: 14px; font-weight: 500;
+    border: none; background: transparent; text-align: left; width: 100%;
+  }
+  .nav-item .num { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); width: 16px; }
+  .nav-item:hover { background: var(--surface-sunken); color: var(--ink); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent-hover); }
+  .nav-item.active .num { color: var(--accent); }
+
+  .sidebar-foot { margin-top: auto; font-size: 12px; color: var(--ink-faint); padding: 0 6px; line-height: 1.6; }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); margin-right: 6px; }
+  .status-dot.ok { background: var(--accent); }
+  .status-dot.bad { background: var(--danger); }
+
+  .main { padding: 32px 40px 60px; max-width: 980px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-head { margin-bottom: 24px; }
+  .view-head h2 { font-size: 22px; }
+  .view-head p { color: var(--ink-soft); font-size: 14px; margin-top: 4px; }
+
+  /* ---------- Generic components ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+  }
+  .card + .card { margin-top: 16px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+  .field label { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+  .field-hint { font-size: 11px; color: var(--ink-faint); }
+
+  input[type=text], input[type=number], input[type=date], input[type=file],
+  select, textarea {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 9px 11px;
+    font-size: 14px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .btn {
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 9px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--surface-sunken); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-danger { color: var(--danger); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .badge {
+    font-family: var(--font-mono); font-size: 11px; padding: 2px 8px;
+    border-radius: 20px; background: var(--surface-sunken); color: var(--ink-soft);
+    display: inline-block;
+  }
+  .badge.warm { background: var(--warm-soft); color: var(--warm); }
+  .badge.accent { background: var(--accent-soft); color: var(--accent-hover); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 500; color: var(--ink-faint); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .row-num { font-family: var(--font-mono); color: var(--ink-faint); font-size: 12px; }
+
+  .empty-state { text-align: center; padding: 36px 20px; color: var(--ink-faint); font-size: 13.5px; }
+
+  #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast {
+    background: var(--ink); color: #fff; padding: 11px 16px; border-radius: var(--radius);
+    font-size: 13px; max-width: 340px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  }
+  .toast.error { background: var(--danger); }
+
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    animation: spin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Library ---------- */
+  .upload-zone { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+  /* ---------- Ask ---------- */
+  .qa-log { display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
+  .qa-entry-q { font-weight: 600; font-size: 14.5px; padding-left: 10px; border-left: 2px solid var(--warm); }
+  .qa-entry-a { font-size: 14px; white-space: pre-wrap; line-height: 1.65; }
+  .sources { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .source-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-soft); }
+  .source-bar-track { width: 60px; height: 5px; background: var(--surface-sunken); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+  .source-bar-fill { height: 100%; background: var(--accent); }
+  .source-file { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+
+  /* ---------- Quiz ---------- */
+  .quiz-question { padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .quiz-question:last-child { border-bottom: none; }
+  .quiz-question-title { font-weight: 500; margin-bottom: 10px; font-size: 14.5px; }
+  .quiz-options { display: flex; flex-direction: column; gap: 6px; }
+  .quiz-option {
+    display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: var(--radius); font-size: 13.5px; cursor: pointer;
+  }
+  .quiz-option:hover { background: var(--surface-sunken); }
+  .quiz-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .quiz-option.correct { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-hover); }
+  .quiz-option.incorrect { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+  .quiz-explain { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; padding: 8px 12px; background: var(--surface-sunken); border-radius: var(--radius); }
+  .score-banner { font-family: var(--font-mono); font-size: 28px; font-weight: 500; color: var(--accent); }
+
+  /* ---------- Flashcards ---------- */
+  .flashcard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 16px; }
+  .flashcard {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    padding: 18px; min-height: 130px; display: flex; flex-direction: column; justify-content: space-between;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .flashcard:hover { border-color: var(--accent); }
+  .flashcard-face { font-size: 14px; line-height: 1.5; }
+  .flashcard-label { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .flashcard-actions { display: flex; gap: 6px; margin-top: 12px; }
+
+  /* ---------- Summarize ---------- */
+  .summary-output { white-space: pre-wrap; font-size: 14.5px; line-height: 1.7; }
+
+  /* ---------- Planner ---------- */
+  .progress-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .progress-card { background: var(--surface-sunken); border-radius: var(--radius); padding: 14px 16px; }
+  .progress-card .subj { font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+  .progress-card .pct { font-family: var(--font-mono); font-size: 22px; margin-top: 4px; }
+  .progress-bar-track { width: 100%; height: 5px; background: var(--line); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); }
+
+  select.status-select { font-size: 12px; padding: 5px 7px; }
+  .priority-tag { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+  .priority-1 { background: var(--danger-soft); color: var(--danger); }
+  .priority-2 { background: var(--warm-soft); color: var(--warm); }
+  .priority-3 { background: var(--surface-sunken); color: var(--ink-faint); }
+
+  @media (max-width: 760px) {
+    .app-shell { grid-template-columns: 1fr; }
+    .sidebar { flex-direction: row; align-items: center; overflow-x: auto; padding: 14px; gap: 14px; }
+    .nav { flex-direction: row; }
+    .sidebar-foot { display: none; }
+    .main { padding: 22px 18px 50px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">StudyAI</span>
+      <span class="brand-tag">v1.0</span>
+    </div>
+    <div class="nav" id="nav">
+      <button class="nav-item active" data-view="library"><span class="num">01</span>Library</button>
+      <button class="nav-item" data-view="ask"><span class="num">02</span>Ask</button>
+      <button class="nav-item" data-view="quiz"><span class="num">03</span>Quiz</button>
+      <button class="nav-item" data-view="flashcards"><span class="num">04</span>Flashcards</button>
+      <button class="nav-item" data-view="summarize"><span class="num">05</span>Summarize</button>
+      <button class="nav-item" data-view="planner"><span class="num">06</span>Planner</button>
+    </div>
+    <div class="sidebar-foot">
+      <div><span class="status-dot" id="status-dot"></span><span id="status-text">checking backend…</span></div>
+      <div style="margin-top:6px;">RAG-based study assistant. Local embeddings + your choice of LLM.</div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ============ LIBRARY ============ -->
+    <section class="view active" id="view-library">
+      <div class="view-head">
+        <h2>Library</h2>
+        <p>Upload notes (PDF or text). Each upload is chunked, embedded, and indexed for retrieval.</p>
+      </div>
+
+      <div class="card">
+        <div class="upload-zone">
+          <div class="field" style="flex:2;">
+            <label for="upload-file">File (.pdf, .txt, .md)</label>
+            <input type="file" id="upload-file" accept=".pdf,.txt,.md" />
+          </div>
+          <div class="field">
+            <label for="upload-subject">Subject</label>
+            <input type="text" id="upload-subject" placeholder="e.g. Operating Systems" value="General" />
+          </div>
+          <button class="btn btn-primary" id="btn-upload">Upload + index</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px; padding:0;">
+        <table>
+          <thead><tr><th>#</th><th>File</th><th>Subject</th><th>Chunks</th><th>Uploaded</th><th></th></tr></thead>
+          <tbody id="doc-table-body"></tbody>
+        </table>
+        <div class="empty-state" id="doc-empty" style="display:none;">No documents yet. Upload your first set of notes above.</div>
+      </div>
+    </section>
+
+    <!-- ============ ASK ============ -->
+    <section class="view" id="view-ask">
+      <div class="view-head">
+        <h2>Ask</h2>
+        <p>Retrieval-augmented Q&amp;A — answers are grounded in the chunks most relevant to your question.</p>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="ask-doc">Scope to document</label>
+            <select id="ask-doc"><option value="">— choose a document —</option></select>
+          </div>
+          <div class="field">
+            <label for="ask-subject">or scope to subject</label>
+            <input type="text" id="ask-subject" placeholder="leave blank if using a document" />
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="ask-question">Your question</label>
+          <textarea id="ask-question" placeholder="e.g. What's the difference between a process and a thread?"></textarea>
+        </div>
+        <button class="btn btn-primary" id="btn-ask" style="margin-top:10px;">Ask</button>
+      </div>
+
+      <div class="qa-log" id="qa-log"></div>
+    </section>
+
+    <!-- ============ QUIZ ============ -->
+    <section class="view" id="view-quiz">
+      <div class="view-head">
+        <h2>Quiz</h2>
+        <p>Auto-generated multiple choice questions from a document, graded with explanations.</p>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="quiz-doc">Document</label>
+            <select id="quiz-doc"><option value="">— choose a document —</option></select>
+          </div>
+          <div class="field" style="max-width:120px;">
+            <label for="quiz-num">Questions</label>
+            <input type="number" id="quiz-num" value="5" min="1" max="20" />
+          </div>
+          <div class="field" style="max-width:140px;">
+            <label for="quiz-difficulty">Difficulty</label>
+            <select id="quiz-difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-generate-quiz">Generate quiz</button>
+        </div>
+      </div>
+
+      <div class="card" id="quiz-area" style="display:none; margin-top:16px;">
+        <h3 id="quiz-title" style="font-size:15px; margin-bottom:4px;"></h3>
+        <div id="quiz-questions"></div>
+        <button class="btn btn-primary" id="btn-submit-quiz" style="margin-top:14px;">Submit answers</button>
+        <div id="quiz-result" style="margin-top:16px; display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ============ FLASHCARDS ============ -->
+    <section class="view" id="view-flashcards">
+      <div class="view-head">
+        <h2>Flashcards</h2>
+        <p>Click a card to flip it. Mark cards as known or still learning to track recall.</p>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="fc-doc">Generate from document</label>
+            <select id="fc-doc"><option value="">— choose a document —</option></select>
+          </div>
+          <div class="field" style="max-width:120px;">
+            <label for="fc-num">Cards</label>
+            <input type="number" id="fc-num" value="8" min="1" max="30" />
+          </div>
+          <button class="btn btn-primary" id="btn-generate-fc">Generate</button>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <div class="field">
+            <label for="fc-filter-subject">Filter by subject</label>
+            <input type="text" id="fc-filter-subject" placeholder="leave blank for all" />
+          </div>
+          <div class="field" style="max-width:160px;">
+            <label for="fc-filter-status">Filter by status</label>
+            <select id="fc-filter-status">
+              <option value="">All</option>
+              <option value="new">New</option>
+              <option value="learning">Still learning</option>
+              <option value="known">Known</option>
+            </select>
+          </div>
+          <button class="btn" id="btn-load-fc">Load cards</button>
+        </div>
+      </div>
+
+      <div class="flashcard-grid" id="flashcard-grid"></div>
+      <div class="empty-state" id="fc-empty" style="display:none;">No flashcards loaded yet.</div>
+    </section>
+
+    <!-- ============ SUMMARIZE ============ -->
+    <section class="view" id="view-summarize">
+      <div class="view-head">
+        <h2>Summarize</h2>
+        <p>Summarize a stored document, or paste any text directly.</p>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="sum-doc">From document (optional)</label>
+            <select id="sum-doc"><option value="">— or paste text below —</option></select>
+          </div>
+          <div class="field" style="max-width:140px;">
+            <label for="sum-level">Length</label>
+            <select id="sum-level">
+              <option value="brief">Brief</option>
+              <option value="medium" selected>Medium</option>
+              <option value="detailed">Detailed</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:140px;">
+            <label for="sum-format">Format</label>
+            <select id="sum-format">
+              <option value="paragraph" selected>Paragraph</option>
+              <option value="bullets">Bullets</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label for="sum-text">Paste text (used only if no document is selected)</label>
+          <textarea id="sum-text" placeholder="Paste any text you want summarized…"></textarea>
+        </div>
+        <button class="btn btn-primary" id="btn-summarize" style="margin-top:10px;">Summarize</button>
+      </div>
+
+      <div class="card" id="summary-card" style="display:none; margin-top:16px;">
+        <div class="summary-output" id="summary-output"></div>
+        <button class="btn btn-sm" id="btn-copy-summary" style="margin-top:12px;">Copy</button>
+      </div>
+    </section>
+
+    <!-- ============ PLANNER ============ -->
+    <section class="view" id="view-planner">
+      <div class="view-head">
+        <h2>Planner</h2>
+        <p>Track topics per subject and watch your coverage add up.</p>
+      </div>
+
+      <div class="progress-grid" id="progress-grid"></div>
+
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label for="topic-subject">Subject</label>
+            <input type="text" id="topic-subject" placeholder="e.g. DBMS" />
+          </div>
+          <div class="field" style="flex:2;">
+            <label for="topic-title">Topic</label>
+            <input type="text" id="topic-title" placeholder="e.g. Normal forms" />
+          </div>
+          <div class="field" style="max-width:120px;">
+            <label for="topic-priority">Priority</label>
+            <select id="topic-priority">
+              <option value="1">High</option>
+              <option value="2" selected>Medium</option>
+              <option value="3">Low</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:160px;">
+            <label for="topic-due">Due date</label>
+            <input type="date" id="topic-due" />
+          </div>
+          <button class="btn btn-primary" id="btn-add-topic">Add topic</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px; padding:0;">
+        <table>
+          <thead><tr><th>#</th><th>Subject</th><th>Topic</th><th>Priority</th><th>Status</th><th>Progress</th><th></th></tr></thead>
+          <tbody id="topic-table-body"></tbody>
+        </table>
+        <div class="empty-state" id="topic-empty" style="display:none;">No topics yet. Add your first one above.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = '';
+let documents = [];
+let currentQuiz = null;
+
+// ---------- utils ----------
+function toast(msg, isError) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch (e) {}
+    throw new Error(detail);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+function setLoading(btn, loading, label) {
+  if (loading) {
+    btn.dataset.label = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> ' + (label || 'Working…');
+    btn.disabled = true;
+  } else {
+    btn.innerHTML = btn.dataset.label || btn.innerHTML;
+    btn.disabled = false;
+  }
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- nav ----------
+document.getElementById('nav').addEventListener('click', (e) => {
+  const btn = e.target.closest('.nav-item');
+  if (!btn) return;
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('view-' + btn.dataset.view).classList.add('active');
+});
+
+// ---------- health check ----------
+async function checkHealth() {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  try {
+    await api('/api/health');
+    dot.className = 'status-dot ok';
+    text.textContent = 'backend connected';
+  } catch (e) {
+    dot.className = 'status-dot bad';
+    text.textContent = 'backend unreachable';
+  }
+}
+
+// ---------- documents ----------
+async function loadDocuments() {
+  documents = await api('/documents/');
+  renderDocTable();
+  populateDocSelects();
+}
+
+function renderDocTable() {
+  const body = document.getElementById('doc-table-body');
+  const empty = document.getElementById('doc-empty');
+  body.innerHTML = '';
+  empty.style.display = documents.length ? 'none' : 'block';
+  documents.forEach((d, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-num">${String(i + 1).padStart(2, '0')}</td>
+      <td>${escapeHtml(d.filename)}</td>
+      <td><span class="badge">${escapeHtml(d.subject)}</span></td>
+      <td class="row-num">${d.num_chunks}</td>
+      <td class="row-num">${fmtDate(d.created_at)}</td>
+      <td><button class="btn btn-sm btn-danger" data-del="${d.id}">Delete</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll('[data-del]').forEach(b => {
+    b.addEventListener('click', () => deleteDocument(parseInt(b.dataset.del)));
+  });
+}
+
+function populateDocSelects() {
+  const selects = ['ask-doc', 'quiz-doc', 'fc-doc', 'sum-doc'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    const keepFirst = sel.options[0];
+    sel.innerHTML = '';
+    sel.appendChild(keepFirst);
+    documents.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = `${d.filename} (${d.subject})`;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+document.getElementById('btn-upload').addEventListener('click', async () => {
+  const fileInput = document.getElementById('upload-file');
+  const subject = document.getElementById('upload-subject').value.trim() || 'General';
+  if (!fileInput.files.length) { toast('Choose a file first', true); return; }
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fd.append('subject', subject);
+
+  const btn = document.getElementById('btn-upload');
+  setLoading(btn, true, 'Indexing…');
+  try {
+    await api('/documents/upload', { method: 'POST', body: fd });
+    toast('Document indexed.');
+    fileInput.value = '';
+    await loadDocuments();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+async function deleteDocument(id) {
+  if (!confirm('Delete this document and its index entries?')) return;
+  try {
+    await api(`/documents/${id}`, { method: 'DELETE' });
+    toast('Document deleted.');
+    await loadDocuments();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+// ---------- ask ----------
+document.getElementById('btn-ask').addEventListener('click', async () => {
+  const question = document.getElementById('ask-question').value.trim();
+  const documentId = document.getElementById('ask-doc').value;
+  const subject = document.getElementById('ask-subject').value.trim();
+  if (!question) { toast('Type a question first', true); return; }
+  if (!documentId && !subject) { toast('Choose a document or enter a subject', true); return; }
+
+  const btn = document.getElementById('btn-ask');
+  setLoading(btn, true, 'Thinking…');
+  try {
+    const payload = { question };
+    if (documentId) payload.document_id = parseInt(documentId);
+    else payload.subject = subject;
+
+    const res = await api('/qa/ask', { method: 'POST', body: JSON.stringify(payload) });
+    prependQAEntry(question, res);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+function prependQAEntry(question, res) {
+  const log = document.getElementById('qa-log');
+  const entry = document.createElement('div');
+  entry.className = 'card';
+  const sourcesHtml = res.sources.map(s => `
+    <div class="source-item">
+      <div class="source-bar-track"><div class="source-bar-fill" style="width:${Math.max(0, Math.min(100, s.relevance_score * 100))}%"></div></div>
+      <span class="source-file">${escapeHtml(s.document_filename)}</span>
+      <span>${escapeHtml(s.chunk_text)}</span>
+    </div>
+  `).join('');
+  entry.innerHTML = `
+    <div class="qa-entry-q">${escapeHtml(question)}</div>
+    <div class="qa-entry-a" style="margin-top:10px;">${escapeHtml(res.answer)}</div>
+    <div class="sources">${sourcesHtml}</div>
+  `;
+  log.prepend(entry);
+}
+
+// ---------- quiz ----------
+document.getElementById('btn-generate-quiz').addEventListener('click', async () => {
+  const documentId = document.getElementById('quiz-doc').value;
+  const numQuestions = parseInt(document.getElementById('quiz-num').value);
+  const difficulty = document.getElementById('quiz-difficulty').value;
+  if (!documentId) { toast('Choose a document first', true); return; }
+
+  const btn = document.getElementById('btn-generate-quiz');
+  setLoading(btn, true, 'Generating…');
+  try {
+    const quiz = await api('/quiz/generate', {
+      method: 'POST',
+      body: JSON.stringify({ document_id: parseInt(documentId), num_questions: numQuestions, difficulty }),
+    });
+    currentQuiz = quiz;
+    renderQuiz(quiz);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+function renderQuiz(quiz) {
+  document.getElementById('quiz-area').style.display = 'block';
+  document.getElementById('quiz-title').textContent = quiz.title;
+  document.getElementById('quiz-result').style.display = 'none';
+  const container = document.getElementById('quiz-questions');
+  container.innerHTML = '';
+  quiz.questions.forEach((q, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-question';
+    div.dataset.qid = q.id;
+    const opts = q.options.map((opt, oi) => `
+      <div class="quiz-option" data-q="${qi}" data-opt="${oi}">${escapeHtml(opt)}</div>
+    `).join('');
+    div.innerHTML = `<div class="quiz-question-title">${qi + 1}. ${escapeHtml(q.question)}</div><div class="quiz-options">${opts}</div>`;
+    container.appendChild(div);
+  });
+  container.querySelectorAll('.quiz-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const qIndex = opt.dataset.q;
+      container.querySelectorAll(`.quiz-option[data-q="${qIndex}"]`).forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+}
+
+document.getElementById('btn-submit-quiz').addEventListener('click', async () => {
+  if (!currentQuiz) return;
+  const container = document.getElementById('quiz-questions');
+  const answers = [];
+  let allAnswered = true;
+  currentQuiz.questions.forEach((q, qi) => {
+    const selected = container.querySelector(`.quiz-option.selected[data-q="${qi}"]`);
+    if (!selected) { allAnswered = false; answers.push(-1); }
+    else answers.push(parseInt(selected.dataset.opt));
+  });
+  if (!allAnswered) { toast('Answer every question first', true); return; }
+
+  const btn = document.getElementById('btn-submit-quiz');
+  setLoading(btn, true, 'Grading…');
+  try {
+    const result = await api(`/quiz/${currentQuiz.id}/submit`, {
+      method: 'POST', body: JSON.stringify({ answers }),
+    });
+    renderQuizResult(result, answers);
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+function renderQuizResult(result, userAnswers) {
+  const questionDivs = document.querySelectorAll('#quiz-questions .quiz-question');
+  result.review.forEach((q, qi) => {
+    const div = questionDivs[qi];
+    div.querySelectorAll('.quiz-option').forEach((opt, oi) => {
+      opt.style.pointerEvents = 'none';
+      if (oi === q.correct_index) opt.classList.add('correct');
+      else if (oi === userAnswers[qi]) opt.classList.add('incorrect');
+    });
+    const explain = document.createElement('div');
+    explain.className = 'quiz-explain';
+    explain.textContent = q.explanation;
+    div.appendChild(explain);
+  });
+
+  const resultBox = document.getElementById('quiz-result');
+  resultBox.style.display = 'block';
+  resultBox.innerHTML = `<div class="score-banner">${result.score} / ${result.total}</div><div style="color:var(--ink-soft); font-size:13px; margin-top:2px;">${result.percentage}% correct</div>`;
+}
+
+// ---------- flashcards ----------
+document.getElementById('btn-generate-fc').addEventListener('click', async () => {
+  const documentId = document.getElementById('fc-doc').value;
+  const numCards = parseInt(document.getElementById('fc-num').value);
+  if (!documentId) { toast('Choose a document first', true); return; }
+
+  const btn = document.getElementById('btn-generate-fc');
+  setLoading(btn, true, 'Generating…');
+  try {
+    await api('/flashcards/generate', {
+      method: 'POST', body: JSON.stringify({ document_id: parseInt(documentId), num_cards: numCards }),
+    });
+    toast('Flashcards generated.');
+    await loadFlashcards();
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btn-load-fc').addEventListener('click', loadFlashcards);
+
+async function loadFlashcards() {
+  const subject = document.getElementById('fc-filter-subject').value.trim();
+  const status = document.getElementById('fc-filter-status').value;
+  const params = new URLSearchParams();
+  if (subject) params.set('subject', subject);
+  if (status) params.set('status', status);
+
+  const cards = await api('/flashcards/?' + params.toString());
+  const grid = document.getElementById('flashcard-grid');
+  const empty = document.getElementById('fc-empty');
+  grid.innerHTML = '';
+  empty.style.display = cards.length ? 'none' : 'block';
+
+  cards.forEach(card => {
+    const el = document.createElement('div');
+    el.className = 'flashcard';
+    el.dataset.flipped = 'false';
+    el.innerHTML = `
+      <div>
+        <div class="flashcard-label" data-face-label>Question</div>
+        <div class="flashcard-face" data-face>${escapeHtml(card.front)}</div>
+      </div>
+      <div class="flashcard-actions">
+        <span class="badge ${card.status === 'known' ? 'accent' : card.status === 'learning' ? 'warm' : ''}">${card.status}</span>
+        <button class="btn btn-sm" data-status="learning" data-id="${card.id}">Still learning</button>
+        <button class="btn btn-sm" data-status="known" data-id="${card.id}">Know it</button>
+      </div>
+    `;
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const flipped = el.dataset.flipped === 'true';
+      el.dataset.flipped = (!flipped).toString();
+      el.querySelector('[data-face-label]').textContent = flipped ? 'Question' : 'Answer';
+      el.querySelector('[data-face]').textContent = flipped ? card.front : card.back;
+    });
+    el.querySelectorAll('[data-status]').forEach(b => {
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          await api(`/flashcards/${b.dataset.id}`, {
+            method: 'PATCH', body: JSON.stringify({ status: b.dataset.status }),
+          });
+          toast('Marked as ' + b.dataset.status + '.');
+          await loadFlashcards();
+        } catch (err) { toast(err.message, true); }
+      });
+    });
+    grid.appendChild(el);
+  });
+}
+
+// ---------- summarize ----------
+document.getElementById('btn-summarize').addEventListener('click', async () => {
+  const documentId = document.getElementById('sum-doc').value;
+  const rawText = document.getElementById('sum-text').value.trim();
+  const level = document.getElementById('sum-level').value;
+  const format = document.getElementById('sum-format').value;
+
+  if (!documentId && !rawText) { toast('Choose a document or paste text', true); return; }
+
+  const payload = { level, format };
+  if (documentId) payload.document_id = parseInt(documentId);
+  else payload.raw_text = rawText;
+
+  const btn = document.getElementById('btn-summarize');
+  setLoading(btn, true, 'Summarizing…');
+  try {
+    const res = await api('/summarize/', { method: 'POST', body: JSON.stringify(payload) });
+    document.getElementById('summary-card').style.display = 'block';
+    document.getElementById('summary-output').textContent = res.summary;
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btn-copy-summary').addEventListener('click', () => {
+  const text = document.getElementById('summary-output').textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copied.'));
+});
+
+// ---------- planner ----------
+async function loadProgress() {
+  const progress = await api('/planner/progress');
+  const grid = document.getElementById('progress-grid');
+  grid.innerHTML = '';
+  progress.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'progress-card';
+    el.innerHTML = `
+      <div class="subj">${escapeHtml(p.subject)}</div>
+      <div class="pct">${p.avg_progress_pct}%</div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${p.avg_progress_pct}%"></div></div>
+      <div style="font-size:11px; color:var(--ink-faint); margin-top:6px;">${p.completed}/${p.total_topics} completed</div>
+    `;
+    grid.appendChild(el);
+  });
+}
+
+async function loadTopics() {
+  const topics = await api('/planner/topics');
+  const body = document.getElementById('topic-table-body');
+  const empty = document.getElementById('topic-empty');
+  body.innerHTML = '';
+  empty.style.display = topics.length ? 'none' : 'block';
+
+  topics.forEach((t, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-num">${String(i + 1).padStart(2, '0')}</td>
+      <td><span class="badge">${escapeHtml(t.subject)}</span></td>
+      <td>${escapeHtml(t.title)}</td>
+      <td><span class="priority-tag priority-${t.priority}">${t.priority === 1 ? 'high' : t.priority === 2 ? 'med' : 'low'}</span></td>
+      <td>
+        <select class="status-select" data-id="${t.id}" data-field="status">
+          <option value="not_started" ${t.status === 'not_started' ? 'selected' : ''}>Not started</option>
+          <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>In progress</option>
+          <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>Completed</option>
+        </select>
+      </td>
+      <td>
+        <input type="number" min="0" max="100" value="${Math.round(t.progress_pct)}" data-id="${t.id}" data-field="progress_pct" style="width:60px; padding:5px 7px; font-size:12px;" />%
+      </td>
+      <td><button class="btn btn-sm btn-danger" data-del-topic="${t.id}">Delete</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('[data-field]').forEach(input => {
+    const handler = async () => {
+      const id = input.dataset.id;
+      const field = input.dataset.field;
+      let value = input.value;
+      if (field === 'progress_pct') value = parseFloat(value);
+      try {
+        await api(`/planner/topics/${id}`, { method: 'PATCH', body: JSON.stringify({ [field]: value }) });
+        await loadTopics();
+        await loadProgress();
+      } catch (e) { toast(e.message, true); }
+    };
+    input.addEventListener('change', handler);
+  });
+
+  body.querySelectorAll('[data-del-topic]').forEach(b => {
+    b.addEventListener('click', async () => {
+      if (!confirm('Delete this topic?')) return;
+      try {
+        await api(`/planner/topics/${b.dataset.delTopic}`, { method: 'DELETE' });
+        await loadTopics();
+        await loadProgress();
+      } catch (e) { toast(e.message, true); }
+    });
+  });
+}
+
+document.getElementById('btn-add-topic').addEventListener('click', async () => {
+  const subject = document.getElementById('topic-subject').value.trim();
+  const title = document.getElementById('topic-title').value.trim();
+  const priority = parseInt(document.getElementById('topic-priority').value);
+  const due = document.getElementById('topic-due').value;
+  if (!subject || !title) { toast('Subject and topic are required', true); return; }
+
+  const payload = { subject, title, priority };
+  if (due) payload.due_date = new Date(due).toISOString();
+
+  try {
+    await api('/planner/topics', { method: 'POST', body: JSON.stringify(payload) });
+    toast('Topic added.');
+    document.getElementById('topic-title').value = '';
+    await loadTopics();
+    await loadProgress();
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
+
+// ---------- init ----------
+(async function init() {
+  await checkHealth();
+  try {
+    await loadDocuments();
+    await loadFlashcards();
+    await loadTopics();
+    await loadProgress();
+  } catch (e) {
+    toast('Could not load initial data: ' + e.message, true);
+  }
+})();
+</script>
+</body>
+</html>
